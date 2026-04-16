@@ -1,0 +1,10 @@
+[package]
+name = "brokerproto"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = {version = "1.52.*", features = ["full"] }
+thiserror = {version = "2.0.*"}
+async-trait = "0.1.*"
+url = "2.5.*"
