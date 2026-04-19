@@ -33,11 +33,24 @@ pub enum ConnectionStyle {
     Reply,
 }
 
+// TODO: I could use URL to specify the 'location' of a service
+// I could use http+unix://%2Fpath%2Fto%2Fsocket.sock to specify a domain socket 
+// I could use a 'normal' url for network services
+// What would I use for mpsc connection?  I could have a trait that returned an 
+// abstract connection with the mpsc one having a clone of the tx object and 
+// the other two returning the URL.
+
+
+
 pub struct ConnectionResponse {
-    response: String;
-    pub new(response: String) -> Self {
+    response: Option<String>;
+    pub new(response: Option<String>) -> Self {
         self.reponse = response;
         self
+    }
+
+    pub fn get_response(&self) -> Option<String> {
+        self.response.clone()
     }
 }
 
@@ -48,12 +61,13 @@ pub struct ConnectionResponse {
 pub trait AConnection {
     fn get_connection_type(&self) -> ConnectionType;
     fn get_connection_style(&self) -> ConnectionStyle;
-    async fn new(connection_type: ConnectionType, connection_style: ConnectionStyle) -> Result<Self, BrokerError>;
+    async fn make_connection(&self) -> Result<Box<dyn AConnection>, BrokerError>;
     async fn connection_is_valid(&self) -> Result<bool, BrokerError>;
-    async fn connect(&mut self) -> Result<Option<ConnectionResponse>, BrokerError>;
+    async fn connect(&mut self) -> Result<ConnectionResponse, BrokerError>;
+}
 
-
-
+pub struct LocalConnection {
+    // fields for local connection
 }
 
 pub struct Connection {
