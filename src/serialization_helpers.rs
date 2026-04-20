@@ -67,6 +67,7 @@ pub trait StructSerializer {
     Unit Tests
     ------------------------------------------------------------------------- */
 
+#[cfg(test)]
 mod tests {
    
 
