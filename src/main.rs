@@ -1,14 +1,24 @@
-use std::sync::Arc;
+// use std::sync::Arc;
 use tokio::sync::{Mutex, Semaphore, OwnedSemaphorePermit};
 use tokio::time::{timeout, Duration};
+use tokio::net::{UnixListener, UnixStream};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::fmt;
+// use std::path::Path;
 use thiserror::Error;
 use async_trait::async_trait;
-use url::{Url, ParseError};
+// use url::{Url, ParseError};
+use serde::{Serialize, Deserialize};
+use std::sync::mpsc::{channel, RecvError, TryRecvError};
 
+mod serialization_helpers;
+use serialization_helpers::{StructDeserializer, StructSerializer};
+
+// use crate::StructDeserializer;
 
 // --- Error types ---
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
 pub enum BrokerError {
     #[error("pool exhausted: no connection available within timeout")]
     Timeout,
@@ -20,7 +30,9 @@ pub enum BrokerError {
     URLError,
 }
 
+
 // --- Connection types ---
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
 pub enum ConnectionType {
     Local, // this will be a thread in the same process
     Machine, // This will be a thread in another process on the same machine
@@ -28,9 +40,83 @@ pub enum ConnectionType {
     Invalid, // An invalid connection
 }
 
+impl std::fmt::Display for ConnectionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConnectionType::Local => write!(f, "Local"),
+            ConnectionType::Machine => write!(f, "Machine"),
+            ConnectionType::Network => write!(f, "Network"),
+            ConnectionType::Invalid => write!(f, "Invalid"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
+
 pub enum ConnectionStyle {
-    Send,
-    Reply,
+    Send,   // A 'fire and forget' style connection where the client sends a message and doesn't expect a response
+    SendReceive, // A 'request-response' style connection where the client sends a message and waits for a response
+}
+
+impl std::fmt::Display for ConnectionStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectionStyle::Send => write!(f, "Send"),
+            ConnectionStyle::SendReceive => write!(f, "SendReceive"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FlowMessageType {
+    Request,    // A request for a service or action
+    Response,   // A response to a reques
+    Notification, // A notification message i.e. service going down, new service available, etc.
+    Error,      // An error message
+}
+
+impl std::fmt::Display for FlowMessageType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FlowMessageType::Request => write!(f, "Request"),
+            FlowMessageType::Response => write!(f, "Response"),
+            FlowMessageType::Notification => write!(f, "Notification"),
+            FlowMessageType::Error => write!(f, "Error"),
+        }
+    }
+}
+
+type LocalSender<T> = std::sync::mpsc::Sender<T>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowMessage{
+    mesage_type: FlowMessageType,
+    content: String, // This could be a JSON string or some other serialized format depending on the use case
+}
+
+impl std::fmt::Display for FlowMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] {}", self.mesage_type, self.content)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ConnectionResponseType {
+    Local(LocalSender<FlowMessage>),  // A channel for communicating with a local thread
+    Machine(String), // A domain socket path for communicating with another process on the same machine
+    Network(String), // A network address (URL) for communicating with another machine
+    Invalid,
+}
+
+impl std::fmt::Display for ConnectionResponseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectionResponseType::Local(_) => write!(f, "Local Channel"),
+            ConnectionResponseType::Machine(path) => write!(f, "Domain Socket: {}", path),
+            ConnectionResponseType::Network(url) => write!(f, "Network Address: {}", url),
+            ConnectionResponseType::Invalid => write!(f, "Invalid Connection"),
+        }
+    }
 }
 
 // TODO: I could use URL to specify the 'location' of a service
@@ -39,22 +125,31 @@ pub enum ConnectionStyle {
 // What would I use for mpsc connection?  I could have a trait that returned an 
 // abstract connection with the mpsc one having a clone of the tx object and 
 // the other two returning the URL.
-
-
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionResponse {
-    response: Option<String>;
-    pub new(response: Option<String>) -> Self {
-        self.reponse = response;
-        self
+    response: Result<ConnectionResponseType, BrokerError>,
+}
+
+impl ConnectionResponse {
+    pub fn new(response: Result<ConnectionResponseType, BrokerError>) -> Self {
+        ConnectionResponse { response }
     }
 
-    pub fn get_response(&self) -> Option<String> {
+    pub fn get_response(&self) -> Result<ConnectionResponseType, BrokerError> {
         self.response.clone()
     }
 }
 
+impl std::fmt::Display for ConnectionResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.response {
+            Ok(resp) => write!(f, "Connection Response: {}", resp),
+            Err(e) => write!(f, "Connection Error: {}", e),
+        }
+    }
+}
 
+/* 
 // --- The managed connection ---
 
 #[async_trait]
@@ -242,3 +337,7 @@ async fn main() {
         let _ = h.await;
     }
 }
+*/
+
+ fn main() {
+ }

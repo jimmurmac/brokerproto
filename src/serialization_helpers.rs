@@ -21,8 +21,27 @@
 ///     pub value: i32,
 /// }
 /// 
-///  impl StructDeserializer for Foo {}
+/// impl Default for Foo {
+///     fn default() -> Self {
+///         Foo {
+///             name: String::new(),
+///             value: 0,
+///         }
+///     }
+/// }
 /// 
+/// impl StructDeserializer for Foo {}
+/// impl StructSerializer for Foo {}
+/// 
+/// fn main() {
+///     let foo = Foo::new("test".to_string(), 42);
+///     let json_str = foo.make_string_from_struct().unwrap();
+///     assert_eq!(json_str, r#"{"name":"test","value":42}"#);
+/// 
+///     let deserialized_foo = Foo::make_struct_from_string(&json_str).unwrap();
+///     assert_eq!(deserialized_foo.get_name(), "test");
+///     assert_eq!(deserialized_foo.get_value(), 42);
+/// }
 
 pub trait StructDeserializer {
     fn make_struct_from_string<'a, T>(json_str: &'a str) -> Result<T, serde_json::Error>
@@ -39,5 +58,51 @@ pub trait StructSerializer {
         Self: std::marker::Sized + serde::Serialize,
     {
         serde_json::to_string(&self)
+    }
+}
+
+/* --------------------------------------------------------------------------
+ Unit Tests
+------------------------------------------------------------------------- */
+
+mod tests {
+    use super::{StructDeserializer, StructSerializer};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Foo {
+        name: String,
+        value: i32,
+    }
+
+    impl Foo {
+
+        pub fn new(name: String, value: i32) -> Self {
+            Foo { name, value }
+        }
+
+        pub fn get_name(&self) -> &str {
+            &self.name
+        }
+
+        pub fn get_value(&self) -> i32 {
+            self.value
+        }
+    }
+
+    impl Default for Foo {
+        fn default() -> Self {
+            Foo { name: String::new(), value: 0 }
+        }
+    }
+
+    impl StructDeserializer for Foo {}
+    impl StructSerializer for Foo {}
+
+    #[test]
+    fn serialize_foo() {
+        let foo = Foo::new("test".to_string(), 42);
+        let json_str = foo.make_string_from_struct().unwrap();
+        assert_eq!(json_str, r#"{"name":"test","value":42}"#);
     }
 }
