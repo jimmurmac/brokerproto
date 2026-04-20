@@ -86,6 +86,7 @@ impl std::fmt::Display for FlowMessageType {
     }
 }
 
+
 type LocalSender<T> = std::sync::mpsc::Sender<T>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +101,7 @@ impl std::fmt::Display for FlowMessage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum ConnectionResponseType {
     Local(LocalSender<FlowMessage>),  // A channel for communicating with a local thread
     Machine(String), // A domain socket path for communicating with another process on the same machine
@@ -125,7 +126,7 @@ impl std::fmt::Display for ConnectionResponseType {
 // What would I use for mpsc connection?  I could have a trait that returned an 
 // abstract connection with the mpsc one having a clone of the tx object and 
 // the other two returning the URL.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ConnectionResponse {
     response: Result<ConnectionResponseType, BrokerError>,
 }
