@@ -43,6 +43,7 @@
 ///     assert_eq!(deserialized_foo.get_value(), 42);
 /// }
 
+#[allow(dead_code)]
 pub trait StructDeserializer {
     fn make_struct_from_string<'a, T>(json_str: &'a str) -> Result<T, serde_json::Error>
     where
@@ -52,6 +53,7 @@ pub trait StructDeserializer {
     }
 }
 
+#[allow(dead_code)]
 pub trait StructSerializer {
     fn make_string_from_struct(&self) -> Result<String, serde_json::Error>
     where

@@ -1,15 +1,15 @@
 // use std::sync::Arc;
-use tokio::sync::{Mutex, Semaphore, OwnedSemaphorePermit};
-use tokio::time::{timeout, Duration};
-use tokio::net::{UnixListener, UnixStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+// use tokio::sync::{Mutex, Semaphore, OwnedSemaphorePermit};
+// use tokio::time::{timeout, Duration};
+// use tokio::net::{UnixListener, UnixStream};
+// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::fmt;
 // use std::path::Path;
 use thiserror::Error;
-use async_trait::async_trait;
+// use async_trait::async_trait;
 // use url::{Url, ParseError};
 use serde::{Serialize, Deserialize};
-use std::sync::mpsc::{channel, RecvError, TryRecvError};
+use std::sync::mpsc::{Sender /*channel, RecvError, TryRecvError*/};
 
 mod serialization_helpers;
 use serialization_helpers::{StructDeserializer, StructSerializer};
@@ -97,7 +97,7 @@ impl std::fmt::Display for FlowMessageType {
     }
 }
 
-type LocalSender<T> = std::sync::mpsc::Sender<T>;
+type LocalSender<T> = Sender<T>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowMessage{
@@ -355,3 +355,26 @@ async fn main() {
 
  fn main() {
  }
+
+
+/*  --------------------------------------------------------------------------
+    Unit Tests
+    ------------------------------------------------------------------------- */
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialization() {
+        let foo = FlowMessage {
+            mesage_type: FlowMessageType::Request,
+            content: "Hello, world!".to_string(),
+        };
+        let json_str = foo.make_string_from_struct().unwrap();
+        assert_eq!(json_str, r#"{"mesage_type":"Request","content":"Hello, world!"}"#);
+
+        let deserialized_foo: FlowMessage = FlowMessage::make_struct_from_string(&json_str).unwrap();
+        assert_eq!(deserialized_foo.mesage_type, FlowMessageType::Request);
+        assert_eq!(deserialized_foo.content, "Hello, world!");
+    }
+}
