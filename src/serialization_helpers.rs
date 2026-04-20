@@ -61,48 +61,59 @@ pub trait StructSerializer {
     }
 }
 
-/* --------------------------------------------------------------------------
- Unit Tests
-------------------------------------------------------------------------- */
+/*  --------------------------------------------------------------------------
+    Unit Tests
+    ------------------------------------------------------------------------- */
 
 mod tests {
-    use super::{StructDeserializer, StructSerializer};
-    use serde::{Deserialize, Serialize};
+   
 
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct Foo {
-        name: String,
-        value: i32,
-    }
-
-    impl Foo {
-
-        pub fn new(name: String, value: i32) -> Self {
-            Foo { name, value }
-        }
-
-        pub fn get_name(&self) -> &str {
-            &self.name
-        }
-
-        pub fn get_value(&self) -> i32 {
-            self.value
-        }
-    }
-
-    impl Default for Foo {
-        fn default() -> Self {
-            Foo { name: String::new(), value: 0 }
-        }
-    }
-
-    impl StructDeserializer for Foo {}
-    impl StructSerializer for Foo {}
 
     #[test]
     fn serialize_foo() {
+
+        // use crate::serialization_helpers::{StructDeserializer, StructSerializer};
+        use super::{StructDeserializer, StructSerializer};
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct Foo {
+            name: String,
+            value: i32,
+        }
+
+        impl Foo {
+
+            pub fn new(name: String, value: i32) -> Self {
+                Foo { name, value }
+            }
+
+            pub fn get_name(&self) -> &str {
+                &self.name
+            }
+
+            pub fn get_value(&self) -> i32 {
+                self.value
+            }
+        }
+
+        impl Default for Foo {
+            fn default() -> Self {
+                Foo { name: String::new(), value: 0 }
+            }
+        }
+
+        impl StructDeserializer for Foo {}
+        impl StructSerializer for Foo {}
+
         let foo = Foo::new("test".to_string(), 42);
+        assert_eq!(foo.get_name(), "test");
+        assert_eq!(foo.get_value(), 42);
         let json_str = foo.make_string_from_struct().unwrap();
         assert_eq!(json_str, r#"{"name":"test","value":42}"#);
+
+        let deserialized_foo: Foo = Foo::make_struct_from_string(&json_str).unwrap();
+        assert_eq!(deserialized_foo.get_name(), "test");
+        assert_eq!(deserialized_foo.get_value(), 42);
     }
 }

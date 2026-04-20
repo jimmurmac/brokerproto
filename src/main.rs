@@ -30,6 +30,8 @@ pub enum BrokerError {
     URLError,
 }
 
+impl StructDeserializer for BrokerError {}
+impl StructSerializer for BrokerError {}
 
 // --- Connection types ---
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
@@ -39,6 +41,9 @@ pub enum ConnectionType {
     Network, // This will be a thread on another machine
     Invalid, // An invalid connection
 }
+
+impl StructDeserializer for ConnectionType {}
+impl StructSerializer for ConnectionType {}
 
 impl std::fmt::Display for ConnectionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
@@ -58,6 +63,9 @@ pub enum ConnectionStyle {
     SendReceive, // A 'request-response' style connection where the client sends a message and waits for a response
 }
 
+impl StructDeserializer for ConnectionStyle {}
+impl StructSerializer for ConnectionStyle {}
+
 impl std::fmt::Display for ConnectionStyle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -75,6 +83,9 @@ pub enum FlowMessageType {
     Error,      // An error message
 }
 
+impl StructDeserializer for FlowMessageType {}
+impl StructSerializer for FlowMessageType {}
+
 impl std::fmt::Display for FlowMessageType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -86,7 +97,6 @@ impl std::fmt::Display for FlowMessageType {
     }
 }
 
-
 type LocalSender<T> = std::sync::mpsc::Sender<T>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +104,9 @@ pub struct FlowMessage{
     mesage_type: FlowMessageType,
     content: String, // This could be a JSON string or some other serialized format depending on the use case
 }
+
+impl StructDeserializer for FlowMessage {}
+impl StructSerializer for FlowMessage {}
 
 impl std::fmt::Display for FlowMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
