@@ -13,6 +13,10 @@ use std::sync::mpsc::{Sender /*channel, RecvError, TryRecvError*/};
 
 mod serialization_helpers;
 use serialization_helpers::{StructDeserializer, StructSerializer};
+mod flow_message;
+use flow_message::{FlowMessage};
+mod local_connection_map;
+use local_connection_map::*;
 
 // use crate::StructDeserializer;
 
@@ -75,44 +79,9 @@ impl std::fmt::Display for ConnectionStyle {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum FlowMessageType {
-    Request,    // A request for a service or action
-    Response,   // A response to a reques
-    Notification, // A notification message i.e. service going down, new service available, etc.
-    Error,      // An error message
-}
-
-impl StructDeserializer for FlowMessageType {}
-impl StructSerializer for FlowMessageType {}
-
-impl std::fmt::Display for FlowMessageType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FlowMessageType::Request => write!(f, "Request"),
-            FlowMessageType::Response => write!(f, "Response"),
-            FlowMessageType::Notification => write!(f, "Notification"),
-            FlowMessageType::Error => write!(f, "Error"),
-        }
-    }
-}
 
 type LocalSender<T> = Sender<T>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlowMessage{
-    mesage_type: FlowMessageType,
-    content: String, // This could be a JSON string or some other serialized format depending on the use case
-}
-
-impl StructDeserializer for FlowMessage {}
-impl StructSerializer for FlowMessage {}
-
-impl std::fmt::Display for FlowMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {}", self.mesage_type, self.content)
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum ConnectionResponseType {
@@ -356,26 +325,3 @@ async fn main() {
  fn main() {
  }
 
-
-/*  --------------------------------------------------------------------------
-    Unit Tests
-    ------------------------------------------------------------------------- */
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_serialization() {
-        let foo = FlowMessage {
-            mesage_type: FlowMessageType::Request,
-            content: "Hello, world!".to_string(),
-        };
-        let json_str = foo.make_string_from_struct().unwrap();
-        assert_eq!(json_str, r#"{"mesage_type":"Request","content":"Hello, world!"}"#);
-
-        let deserialized_foo: FlowMessage = FlowMessage::make_struct_from_string(&json_str).unwrap();
-        assert_eq!(deserialized_foo.mesage_type, FlowMessageType::Request);
-        assert_eq!(deserialized_foo.content, "Hello, world!");
-    }
-}
