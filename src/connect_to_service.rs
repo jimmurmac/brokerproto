@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use crate::serialization_helpers::{StructDeserializer, StructSerializer};
-use crate::local_connection_map::*;
+use crate::flow_message::{FlowMessage, FlowMessageType};
+use crate::connect_to_local_service::*;
 
 use thiserror::Error;
 use std::fmt;
@@ -15,6 +16,8 @@ pub enum ConnectionError {
     Shutdown,
     #[error("Invalid URL")]
     URLError,
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
 }
 
 impl StructDeserializer for ConnectionError {}
@@ -78,6 +81,71 @@ impl std::fmt::Display for ConnectionResponseType {
             ConnectionResponseType::Network(url) => write!(f, "Network Address: {}", url),
             ConnectionResponseType::Invalid => write!(f, "Invalid Connection"),
         }
+    }
+}
+
+pub trait ServiceConnection {
+    
+    fn send(&self, msg: FlowMessage)-> Result<Option<FlowMessage>, ConnectionError>;
+
+    fn disconnect(&self) -> Result<(), ConnectionError>;
+
+    fn get_connection_style(&self) -> ConnectionStyle;
+    fn get_connection_type(&self) -> ConnectionType;
+    fn get_service_name(&self) -> String;
+}
+
+pub fn connect_to_service(service_name: String, connection_type: ConnectionType, 
+        connection_style: ConnectionStyle) -> Result<Box<dyn ServiceConnection>, 
+        ConnectionError> {
+            
+        // Determine the type of connection that is to be established
+        let connection = match connection_type {
+            ConnectionType::Local => {
+                // Connect to a local thread
+                println!("Connecting to local service: {}", service_name);
+                connect_to_local_service(service_name, connection_type, connection_style)
+            },
+            ConnectionType::Machine => {
+                // Connect to another process on the same machine
+                println!("Connecting to machine service: {}", service_name);
+                // Here we would have logic to connect to another process and return a ServiceConnection implementation
+                // For now, we'll just return an error indicating that this is not implemented
+                return Err(ConnectionError::Connection("Machine connection not implemented".to_string()));
+            },
+            ConnectionType::Network => {
+                // Connect to another machine over the network
+                println!("Connecting to network service: {}", service_name);
+                // Here we would have logic to connect to another machine and return a ServiceConnection implementation
+                // For now, we'll just return an error indicating that this is not implemented
+                return Err(ConnectionError::Connection("Network connection not implemented".to_string()));
+            },
+            ConnectionType::Invalid => {
+                println!("Invalid connection type specified for service: {}", service_name);
+                return Err(ConnectionError::URLError);
+            }
+        };
+
+        return connection;
+
+    }
+
+
+
+
+/*  --------------------------------------------------------------------------
+    Unit Tests
+    ------------------------------------------------------------------------- */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_connections() {
+        println!("Begin connection test");
+        let _crt = ConnectionResponseType::Local(String::from("test"));
+        println!("End connection test");
+
     }
 }
 
