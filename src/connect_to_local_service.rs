@@ -1,10 +1,7 @@
-use serde::{Serialize, Deserialize};
-use crate::serialization_helpers::{StructDeserializer, StructSerializer};
-use crate::flow_message::{FlowMessage, FlowMessageType};
+use crate::flow_message::{FlowMessage};
 use crate::local_connection_map::*;
 use crate::connect_to_service::{ServiceConnection, ConnectionType, ConnectionStyle, ConnectionError};
-use thiserror::Error;
-use std::fmt;
+use crate::connection_map::{ConnectionMap, ConnectionMapEntry};
 use std::sync::mpsc::{Sender, Receiver, channel};
 
 #[derive(Debug)]
@@ -20,9 +17,21 @@ pub struct LocalServiceConnection {
 impl LocalServiceConnection {
 
     pub fn new(service_name: String, connection_style: ConnectionStyle) -> Self {
-        let mut response_tx = None;
+
+        /*
+        ConnectionMapEntry {
+    Local(Sender<FlowMessage>)
+     */
+        let mut response_tx: Option<Sender<FlowMessage>> = None;
         let mut response_rx = None;
-        let mut request_tx = get_map_entry(service_name.clone());
+        let mut request_tx:Option<Sender<FlowMessage>> = None;
+
+
+        let a_entry = LocalConnectionMap::get_map_entry(service_name.clone());
+        
+        if let Some(ConnectionMapEntry::Local(sender)) = a_entry{
+            request_tx = Some(sender.clone());
+        } 
 
         if request_tx.is_some() {
             if let ConnectionStyle::SendReceive = connection_style {
@@ -31,9 +40,10 @@ impl LocalServiceConnection {
                 response_rx = Some(a_response_rx);
             }
         }
+
         return LocalServiceConnection {
-            response_sender: None,
-            response_receiver: None,
+            response_sender: response_tx,
+            response_receiver: response_rx,
             request_sender: request_tx,
             connection_style,
             connection_type: ConnectionType::Local,
@@ -98,10 +108,8 @@ impl ServiceConnection for LocalServiceConnection {
 #[derive(Debug, Clone)]
 pub struct LocalServiceReponseWrapper{
     request: FlowMessage,
-    response_sender: Option<Sender<FlowMessage>>}
-
-impl StructDeserializer for LocalServiceConnection {}
-impl StructSerializer for LocalServiceConnection {}
+    response_sender: Option<Sender<FlowMessage>>
+}
 
 impl LocalServiceReponseWrapper {
     pub fn new(request: FlowMessage, response_sender: Option<Sender<FlowMessage>>) -> Self {
