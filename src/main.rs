@@ -16,121 +16,14 @@ use serialization_helpers::{StructDeserializer, StructSerializer};
 mod flow_message;
 use flow_message::{FlowMessage};
 mod local_connection_map;
-use local_connection_map::*;
-
+mod connect_to_service;
+use connect_to_service::*;
 // use crate::StructDeserializer;
 
-// --- Error types ---
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
-pub enum BrokerError {
-    #[error("pool exhausted: no connection available within timeout")]
-    Timeout,
-    #[error("connection error: {0}")]
-    Connection(String),
-    #[error("pool is shut down")]
-    Shutdown,
-    #[error("Invalid URL")]
-    URLError,
-}
-
-impl StructDeserializer for BrokerError {}
-impl StructSerializer for BrokerError {}
-
-// --- Connection types ---
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
-pub enum ConnectionType {
-    Local, // this will be a thread in the same process
-    Machine, // This will be a thread in another process on the same machine
-    Network, // This will be a thread on another machine
-    Invalid, // An invalid connection
-}
-
-impl StructDeserializer for ConnectionType {}
-impl StructSerializer for ConnectionType {}
-
-impl std::fmt::Display for ConnectionType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConnectionType::Local => write!(f, "Local"),
-            ConnectionType::Machine => write!(f, "Machine"),
-            ConnectionType::Network => write!(f, "Network"),
-            ConnectionType::Invalid => write!(f, "Invalid"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error, Serialize, Deserialize)]
-
-pub enum ConnectionStyle {
-    Send,   // A 'fire and forget' style connection where the client sends a message and doesn't expect a response
-    SendReceive, // A 'request-response' style connection where the client sends a message and waits for a response
-}
-
-impl StructDeserializer for ConnectionStyle {}
-impl StructSerializer for ConnectionStyle {}
-
-impl std::fmt::Display for ConnectionStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConnectionStyle::Send => write!(f, "Send"),
-            ConnectionStyle::SendReceive => write!(f, "SendReceive"),
-        }
-    }
-}
 
 
 type LocalSender<T> = Sender<T>;
 
-
-#[derive(Debug, Clone)]
-pub enum ConnectionResponseType {
-    Local(LocalSender<FlowMessage>),  // A channel for communicating with a local thread
-    Machine(String), // A domain socket path for communicating with another process on the same machine
-    Network(String), // A network address (URL) for communicating with another machine
-    Invalid,
-}
-
-impl std::fmt::Display for ConnectionResponseType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConnectionResponseType::Local(_) => write!(f, "Local Channel"),
-            ConnectionResponseType::Machine(path) => write!(f, "Domain Socket: {}", path),
-            ConnectionResponseType::Network(url) => write!(f, "Network Address: {}", url),
-            ConnectionResponseType::Invalid => write!(f, "Invalid Connection"),
-        }
-    }
-}
-
-// TODO: I could use URL to specify the 'location' of a service
-// I could use http+unix://%2Fpath%2Fto%2Fsocket.sock to specify a domain socket 
-// I could use a 'normal' url for network services
-// What would I use for mpsc connection?  I could have a trait that returned an 
-// abstract connection with the mpsc one having a clone of the tx object and 
-// the other two returning the URL.
-#[derive(Debug, Clone)]
-pub struct ConnectionResponse {
-    response: Result<ConnectionResponseType, BrokerError>,
-}
-
-impl ConnectionResponse {
-    pub fn new(response: Result<ConnectionResponseType, BrokerError>) -> Self {
-        ConnectionResponse { response }
-    }
-
-    pub fn get_response(&self) -> Result<ConnectionResponseType, BrokerError> {
-        self.response.clone()
-    }
-}
-
-impl std::fmt::Display for ConnectionResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.response {
-            Ok(resp) => write!(f, "Connection Response: {}", resp),
-            Err(e) => write!(f, "Connection Error: {}", e),
-        }
-    }
-}
 
 /* 
 // --- The managed connection ---
@@ -139,9 +32,9 @@ impl std::fmt::Display for ConnectionResponse {
 pub trait AConnection {
     fn get_connection_type(&self) -> ConnectionType;
     fn get_connection_style(&self) -> ConnectionStyle;
-    async fn make_connection(&self) -> Result<Box<dyn AConnection>, BrokerError>;
-    async fn connection_is_valid(&self) -> Result<bool, BrokerError>;
-    async fn connect(&mut self) -> Result<ConnectionResponse, BrokerError>;
+    async fn make_connection(&self) -> Result<Box<dyn AConnection>, ConnectionError>;
+    async fn connection_is_valid(&self) -> Result<bool, ConnectionError>;
+    async fn connect(&mut self) -> Result<ConnectionResponse, ConnectionError>;
 }
 
 pub struct LocalConnection {
@@ -154,7 +47,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub async fn new(id: usize, addr: &str) -> Result<Self, BrokerError> {
+    pub async fn new(id: usize, addr: &str) -> Result<Self, ConnectionError> {
         // Replace with real connect logic
         println!("[conn-{}] connecting to {}", id, addr);
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -244,14 +137,14 @@ impl ConnectionBroker {
     }
 
     /// Acquire a connection from the pool, waiting up to `acquire_timeout`.
-    pub async fn acquire(&self) -> Result<PooledConn, BrokerError> {
+    pub async fn acquire(&self) -> Result<PooledConn, ConnectionError> {
         let permit = timeout(
             self.acquire_timeout,
             Arc::clone(&self.pool.semaphore).acquire_owned(),
         )
         .await
-        .map_err(|_| BrokerError::Timeout)?
-        .map_err(|_| BrokerError::Shutdown)?;
+        .map_err(|_| ConnectionError::Timeout)?
+        .map_err(|_| ConnectionError::Shutdown)?;
 
         // Try to reuse an idle connection
         let conn = {
@@ -266,7 +159,7 @@ impl ConnectionBroker {
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Connection::new(id, &self.pool.addr)
                     .await
-                    .map_err(|e| BrokerError::Connection(e.to_string()))?
+                    .map_err(|e| ConnectionError::Connection(e.to_string()))?
             }
         };
 
@@ -278,7 +171,7 @@ impl ConnectionBroker {
     }
 
     /// Run a closure with a borrowed connection, returning the result.
-    pub async fn with_connection<F, T>(&self, f: F) -> Result<T, BrokerError>
+    pub async fn with_connection<F, T>(&self, f: F) -> Result<T, ConnectionError>
     where
         F: for<'a> FnOnce(&'a Connection) -> std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>,
     {
