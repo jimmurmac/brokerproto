@@ -165,3 +165,45 @@ pub fn connect_to_local_service(
 
     Ok(Box::new(service_connection))
 }
+
+/*  --------------------------------------------------------------------------
+Unit Tests
+------------------------------------------------------------------------- */
+/*
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use super::*;
+    use std::sync::mpsc::<Sender<FlowMessage>>;
+
+    #[test]
+    fn local_service_connection_test() {
+        let service_name = String::from("test_service");
+        let (tx, rx) = channel::<FlowMessage>();
+
+        LocalConnectionMap::register_map_entry(service_name.clone(), ConnectionMapEntry::Local(tx));
+
+        let connection_result = connect_to_local_service(
+            service_name.clone(),
+            ConnectionType::Local,
+            ConnectionStyle::SendReceive,
+        );
+
+        assert!(connection_result.is_ok());
+        let connection = connection_result.unwrap();
+
+        let test_message = FlowMessage::new(FlowMessageType::Request, String::from("Test message"));
+        let send_result = connection.send(test_message.clone());
+
+        assert!(send_result.is_ok());
+        assert!(send_result.unwrap().is_some());
+
+        // Check that the message was received on the other end
+        let received_message_result = rx.recv();
+        assert!(received_message_result.is_ok());
+        let received_message = received_message_result.unwrap();
+        assert_eq!(received_message.get_content(), test_message.get_content());
+    }
+}
+*/
