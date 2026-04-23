@@ -7,6 +7,7 @@
  Copyright ©    2026 Jim Murphy All rights reserved.
 ========================================================================== */
 
+use crate::serialization_helpers::{StructDeserializer, StructSerializer};
 /// The Flow-System is a message based system.  Messages are Rust structs that have
 /// been serialized into JSON to send to a service.  The service takes the JSON and
 /// deserializes the JSON back into a struct.  That struct is then used to determine
@@ -41,9 +42,7 @@
 ///  assert_eq!(fm_2.get_type(), FlowMessageType::Notification);
 ///  assert_eq!(fm_2.get_content(), "test");
 /// ```
-
-use serde::{Serialize, Deserialize};
-use crate::serialization_helpers::{StructDeserializer, StructSerializer};
+use serde::{Deserialize, Serialize};
 
 /// Define the types of messages that can be sent,
 ///  Request:       A request for a service or action
@@ -52,11 +51,11 @@ use crate::serialization_helpers::{StructDeserializer, StructSerializer};
 ///  Notification:  A notification message i.e. service going down, new service available, etc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FlowMessageType {
-    Request,    // A request for a service or action
-    Response,   // A response to a request
-    Command,    // A command for the thread or process i.e. shutdown etc
+    Request,      // A request for a service or action
+    Response,     // A response to a request
+    Command,      // A command for the thread or process i.e. shutdown etc
     Notification, // A notification message i.e. service going down, new service available, etc.
-    Error,      // An error message
+    Error,        // An error message
 }
 
 // Ensure that FlowMessageType will be serializable.
@@ -81,7 +80,7 @@ impl std::fmt::Display for FlowMessageType {
 /// If has a FlowMessageType and a content string.  The content string
 /// will be a JSON string of the structure that represents the message
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlowMessage{
+pub struct FlowMessage {
     mesage_type: FlowMessageType,
     content: String, // This could be a JSON string or some other serialized format depending on the use case
 }
@@ -90,7 +89,7 @@ impl FlowMessage {
     pub fn new(mesage_type: FlowMessageType, content: String) -> FlowMessage {
         FlowMessage {
             mesage_type,
-            content
+            content,
         }
     }
     pub fn get_type(&self) -> FlowMessageType {
@@ -116,10 +115,9 @@ impl Default for FlowMessage {
     }
 }
 
-
 /*  --------------------------------------------------------------------------
-    Unit Tests
-    ------------------------------------------------------------------------- */
+Unit Tests
+------------------------------------------------------------------------- */
 
 #[cfg(test)]
 mod tests {
@@ -153,6 +151,5 @@ mod tests {
         assert_eq!(fm_2.get_content(), "test");
 
         println!("Completed testing flow message");
-
     }
 }

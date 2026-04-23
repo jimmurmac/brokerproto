@@ -9,6 +9,10 @@
  Copyright ©    2026 Jim Murphy All rights reserved.
 ========================================================================== */
 
+use crate::connection_map::{ConnectionMap, ConnectionMapEntry};
+use crate::flow_message::*;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 /// The Flow-System is designed to support a single communication abstraction
 /// that support mpsc, domain sockets, and TCP communications.  Domain sockets
 /// are located using a file path (string), TCP communications are located
@@ -41,11 +45,7 @@
 /// ```
 ///
 use std::sync::Mutex;
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
-use std::sync::mpsc::{Sender};
-use crate::flow_message::*;
-use crate::connection_map::{ConnectionMapEntry, ConnectionMap};
+use std::sync::mpsc::Sender;
 
 #[allow(dead_code)]
 static LOCAL_MAP: Lazy<Mutex<HashMap<String, Sender<FlowMessage>>>> = Lazy::new(|| {
@@ -53,10 +53,10 @@ static LOCAL_MAP: Lazy<Mutex<HashMap<String, Sender<FlowMessage>>>> = Lazy::new(
     a_map
 });
 
-pub struct LocalConnectionMap{}
+pub struct LocalConnectionMap {}
 
 impl ConnectionMap for LocalConnectionMap {
-    fn register_map_entry(name: String, sender:  ConnectionMapEntry) {
+    fn register_map_entry(name: String, sender: ConnectionMapEntry) {
         if let ConnectionMapEntry::Local(tx) = sender {
             LOCAL_MAP.lock().unwrap().entry(name).or_insert(tx);
         } else {
@@ -66,7 +66,9 @@ impl ConnectionMap for LocalConnectionMap {
 
     fn get_map_entry(name: String) -> Option<ConnectionMapEntry> {
         if LOCAL_MAP.lock().unwrap().contains_key(&name) {
-            return Some(ConnectionMapEntry::Local(LOCAL_MAP.lock().unwrap().get(&name).unwrap().clone()));
+            return Some(ConnectionMapEntry::Local(
+                LOCAL_MAP.lock().unwrap().get(&name).unwrap().clone(),
+            ));
         }
         None
     }
@@ -76,17 +78,16 @@ impl ConnectionMap for LocalConnectionMap {
     }
 }
 
-
 /*  --------------------------------------------------------------------------
-    Unit Tests
-    ------------------------------------------------------------------------- */
+Unit Tests
+------------------------------------------------------------------------- */
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc::{channel};
-    use std::{thread};
     use crate::serialization_helpers::StructSerializer;
+    use std::sync::mpsc::channel;
+    use std::thread;
 
     #[test]
     fn map_test() {
@@ -105,11 +106,16 @@ mod tests {
         assert!(fm2_msg.is_ok());
         let _msg2 = fm2_msg.unwrap();
 
-
         let thread1_id = "com.murf.mpsc.thread1".to_string();
         let thread2_id = "com.murf.mpsc.thread2".to_string();
-        LocalConnectionMap::register_map_entry(thread1_id.clone(), ConnectionMapEntry::Local(tx1.clone()));
-        LocalConnectionMap::register_map_entry(thread2_id.clone(), ConnectionMapEntry::Local(tx2.clone()));
+        LocalConnectionMap::register_map_entry(
+            thread1_id.clone(),
+            ConnectionMapEntry::Local(tx1.clone()),
+        );
+        LocalConnectionMap::register_map_entry(
+            thread2_id.clone(),
+            ConnectionMapEntry::Local(tx2.clone()),
+        );
 
         let map_entry_op1 = LocalConnectionMap::get_map_entry(thread1_id.clone());
         if map_entry_op1.is_some() {
@@ -118,8 +124,8 @@ mod tests {
             } else {
                 println!("Expected a local connection entry for thread 1");
             }
-        }           
-      
+        }
+
         let map_entry_op2 = LocalConnectionMap::get_map_entry(thread2_id.clone());
         if map_entry_op2.is_some() {
             if let ConnectionMapEntry::Local(sender2) = map_entry_op2.unwrap() {
@@ -131,15 +137,13 @@ mod tests {
 
         // Setup thread for thread1
         let thread_1_handle = thread::spawn(move || {
-
             loop {
-
                 let msg = rx1.recv();
                 match msg {
                     Ok(msg) => {
                         println!("Thread 1 reeived a message of {}", msg.get_content());
                         break;
-                    },
+                    }
                     Err(_) => {
                         println!("Thread 1 got an error on receiving a message");
                         break;
@@ -156,7 +160,7 @@ mod tests {
                     Ok(msg) => {
                         println!("Thread 2 reeived a message of {}", msg.get_content());
                         break;
-                    },
+                    }
                     Err(_) => {
                         println!("Thread 2 got an error on receiving a message");
                         break;

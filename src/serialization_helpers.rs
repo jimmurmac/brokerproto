@@ -62,7 +62,6 @@ pub trait StructDeserializer {
     }
 }
 
-
 /// The StructSerializer trait defines the behavior needed to take a Rust Struct and turn
 /// it into its JSON string representation.
 #[allow(dead_code)]
@@ -76,14 +75,13 @@ pub trait StructSerializer {
 }
 
 /*  --------------------------------------------------------------------------
-    Unit Tests
-    ------------------------------------------------------------------------- */
+Unit Tests
+------------------------------------------------------------------------- */
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn serialize_foo() {
-
         println!("Testing serialization helpers");
         // use crate::serialization_helpers::{StructDeserializer, StructSerializer};
         use super::{StructDeserializer, StructSerializer};
@@ -96,7 +94,6 @@ mod tests {
         }
 
         impl Foo {
-
             pub fn new(name: String, value: i32) -> Self {
                 Foo { name, value }
             }
@@ -112,7 +109,10 @@ mod tests {
 
         impl Default for Foo {
             fn default() -> Self {
-                Foo { name: String::new(), value: 0 }
+                Foo {
+                    name: String::new(),
+                    value: 0,
+                }
             }
         }
 
@@ -129,6 +129,5 @@ mod tests {
         assert_eq!(deserialized_foo.get_name(), "test");
         assert_eq!(deserialized_foo.get_value(), 42);
         println!("Completed testing serialization helpers");
-
     }
 }

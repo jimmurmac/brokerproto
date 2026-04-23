@@ -1,6 +1,5 @@
-
-use std::path::Path;
 use std::io::{Read, Write};
+use std::path::Path;
 
 #[cfg(target_os = "windows")]
 use uds_windows::{UnixListener, UnixStream};
@@ -11,7 +10,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 #[cfg(target_os = "macos")]
 use std::os::unix::net::{UnixListener, UnixStream};
 
+use crate::connect_to_service::{
+    ConnectionError, ConnectionStyle, ConnectionType, ServiceConnection,
+};
 use crate::flow_message::{FlowMessage, FlowMessageType};
-use crate::connect_to_service::{ServiceConnection, ConnectionType, ConnectionStyle, ConnectionError};
-
-
