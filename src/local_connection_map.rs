@@ -57,6 +57,11 @@ pub struct LocalConnectionMap {}
 
 impl ConnectionMap for LocalConnectionMap {
     fn register_map_entry(name: String, sender: ConnectionMapEntry) {
+
+        if LOCAL_MAP.lock().unwrap().contains_key(&name) {
+            return;
+        }
+
         if let ConnectionMapEntry::Local(tx) = sender {
             LOCAL_MAP.lock().unwrap().entry(name).or_insert(tx);
         } else {
@@ -74,7 +79,10 @@ impl ConnectionMap for LocalConnectionMap {
     }
 
     fn remove_map_entry(name: String) {
-        let _ = LOCAL_MAP.lock().unwrap().remove(&name);
+
+        if LOCAL_MAP.lock().unwrap().contains_key(&name) {
+            let _ = LOCAL_MAP.lock().unwrap().remove(&name);
+        }
     }
 }
 
@@ -169,14 +177,22 @@ mod tests {
             }
         });
 
+        /*
         let num_thread_entries = LOCAL_MAP.lock().unwrap().len();
         LocalConnectionMap::remove_map_entry(thread1_id.clone());
         assert_eq!(num_thread_entries, LOCAL_MAP.lock().unwrap().len() + 1);
         LocalConnectionMap::remove_map_entry(thread2_id.clone());
         assert_eq!(0, LOCAL_MAP.lock().unwrap().len());
+        */
 
         let _ = thread_1_handle.join();
         let _ = thread_2_handle.join();
+
+        let num_thread_entries = LOCAL_MAP.lock().unwrap().len();
+        LocalConnectionMap::remove_map_entry(thread1_id.clone());
+        assert_eq!(num_thread_entries, LOCAL_MAP.lock().unwrap().len() + 1);
+        LocalConnectionMap::remove_map_entry(thread2_id.clone());
+        assert_eq!(0, LOCAL_MAP.lock().unwrap().len());
 
         println!("Completed testing local connection");
     }
