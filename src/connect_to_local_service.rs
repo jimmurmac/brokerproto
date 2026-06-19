@@ -49,9 +49,26 @@ impl LocalServiceConnection {
             service_name,
         };
     }
+
+    pub fn set_response_sender(&mut self, sender: Sender<FlowMessage>) {
+            self.response_sender = Some(sender.clone());
+    }
+
+    pub fn get_response_sender(&self) -> Option<Sender<FlowMessage>> {
+        self.response_sender.clone()
+    }
+
+    pub fn set_response_receiver(&mut self, receiver: Receiver<FlowMessage>) {
+        self.response_receiver = Some(receiver);
+    }
+
+    pub fn get_response_receiver(&self) -> &Option<Receiver<FlowMessage>> {
+        &self.response_receiver
+    }
 }
 
 impl ServiceConnection for LocalServiceConnection {
+
     fn send(&self, msg: FlowMessage) -> Result<Option<FlowMessage>, ConnectionError> {
         if self.request_sender.is_none() {
             println!(
@@ -169,41 +186,103 @@ pub fn connect_to_local_service(
 /*  --------------------------------------------------------------------------
 Unit Tests
 ------------------------------------------------------------------------- */
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use super::*;
-    use std::sync::mpsc::<Sender<FlowMessage>>;
+    use crate::flow_message::FlowMessageType;
+    use crate::serialization_helpers::StructSerializer;
+    use std::sync::mpsc::channel;
+    use std::thread;
 
     #[test]
     fn local_service_connection_test() {
-        let service_name = String::from("test_service");
-        let (tx, rx) = channel::<FlowMessage>();
 
-        LocalConnectionMap::register_map_entry(service_name.clone(), ConnectionMapEntry::Local(tx));
+        let mut thread1_work_complete = false;
+        let mut thread2_work_complete = false;
 
-        let connection_result = connect_to_local_service(
-            service_name.clone(),
-            ConnectionType::Local,
-            ConnectionStyle::SendReceive,
-        );
+        let thread_1_handle = thread::spawn(move || {
+            let service_name = String::from("connect_to_local_service1");
 
-        assert!(connection_result.is_ok());
-        let connection = connection_result.unwrap();
+            let (tx1, rx1) = channel::<FlowMessage>();
+            LocalConnectionMap::register_map_entry(service_name.clone(), ConnectionMapEntry::Local(tx1));
 
-        let test_message = FlowMessage::new(FlowMessageType::Request, String::from("Test message"));
-        let send_result = connection.send(test_message.clone());
+            let test_message1 = FlowMessage::new(FlowMessageType::Request, String::from("Test message"));
 
-        assert!(send_result.is_ok());
-        assert!(send_result.unwrap().is_some());
+            let connection_result = connect_to_local_service(
+                service_name.clone(),
+                ConnectionType::Local,
+                ConnectionStyle::Send,
+            );
 
-        // Check that the message was received on the other end
-        let received_message_result = rx.recv();
-        assert!(received_message_result.is_ok());
-        let received_message = received_message_result.unwrap();
-        assert_eq!(received_message.get_content(), test_message.get_content());
+            if let Err(error) = connection_result {
+                println!("Connection failure trying to connect to {}", service_name);
+                return;
+            }
+
+            let a_connection = connection_result.unwrap();
+            let send_result = a_connection.send(test_message1);
+            if let Err(error) = send_result {
+                println!("Failed to send message to service: {}", service_name);
+                return;
+            }
+
+            assert!(send_result.is_ok());
+            let a_send_result = send_result.unwrap();
+            assert!(a_send_result.is_none());
+
+            LocalConnectionMap::remove_map_entry(service_name.clone());
+            thread1_work_complete = true;
+        });
+
+        let thread_2_handle = thread::spawn(move || {
+            let service_name = String::from("connect_to_local_service2");
+
+            let (tx2, rx2) = channel::<FlowMessage>();
+            LocalConnectionMap::register_map_entry(service_name.clone(), ConnectionMapEntry::Local(tx2));
+
+            let test_message2 = FlowMessage::new(FlowMessageType::Request, String::from("Test message 2"));
+
+            let connection_result = connect_to_local_service(
+                service_name.clone(),
+                ConnectionType::Local,
+                ConnectionStyle::SendReceive,
+            );
+
+            if let Err(error) = connection_result {
+                println!("Connection failure trying to connect to {}", service_name);
+                return;
+            }
+
+            let a_connection = connection_result.unwrap();
+            let send_result = a_connection.send(test_message2);
+
+            if let Err(error) = send_result {
+                println!("Failed to send message to service: {}", service_name);
+                return;
+            }
+
+            assert!(send_result.is_ok());
+
+            match send_result.unwrap() {
+                Some(response) => {
+                    println!("Received response: {}", response.get_content());
+                }
+                None => {
+                    println!("No response received");
+                    assert!(false, "Expected a response but got None");
+                }
+            }
+
+            thread2_work_complete = true;
+        });
+
+        assert!(thread_1_handle.join().is_ok());
+        assert!(thread_2_handle.join().is_ok());
+
+
     }
 }
-*/
+

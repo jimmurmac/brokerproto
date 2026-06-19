@@ -5,6 +5,7 @@ mod connection_map;
 mod flow_message;
 mod local_connection_map;
 mod serialization_helpers;
+mod service;
 
 fn main() {
     println!("Hello, world!");

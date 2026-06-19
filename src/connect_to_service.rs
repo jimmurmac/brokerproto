@@ -94,6 +94,7 @@ pub trait ServiceConnection {
     fn get_service_name(&self) -> String;
 }
 
+
 pub fn connect_to_service(
     service_name: String,
     connection_type: ConnectionType,

@@ -49,6 +49,8 @@
 ///     assert_eq!(deserialized_foo.get_name(), "test");
 ///     assert_eq!(deserialized_foo.get_value(), 42);
 /// }
+/// ```
+/// 
 
 /// The StructDeserializer trait defines the behavior needed to take a JSON string
 /// representation of a Rust Struct and turn it back into a Rust struct.
